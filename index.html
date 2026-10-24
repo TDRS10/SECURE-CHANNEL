@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Channel | قناة اتصال مشفرة</title>
+    
+    <meta name="theme-color" content="#000d1a">
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='40' fill='%2300aaff'/%3E%3Ctext x='90' y='125' font-size='95' text-anchor='middle'%3E%F0%9F%94%90%3C/text%3E%3C/svg%3E">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Outfit:wght@300;400;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- CryptoJS for Client-Side Encryption -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body>
+
+    <!-- Matrix Rain Canvas -->
+    <canvas id="matrixCanvas"></canvas>
+
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- ========== DECRYPTION GATE SCREEN ========== -->
+    <div id="decryptionGate" class="gate-screen active">
+        <div class="gate-card">
+
+            <!-- Top Status Bar -->
+            <div class="gate-status-bar">
+                <span class="gate-status-dot"></span>
+                <span class="gate-status-text" id="gateStatusText">ESTABLISHING SECURE CONNECTION...</span>
+            </div>
+
+            <!-- Lock Icon -->
+            <div class="gate-lock-wrapper">
+                <div class="gate-lock-ring ring-outer"></div>
+                <div class="gate-lock-ring ring-inner"></div>
+                <div class="gate-lock-icon" id="gateLockIcon">
+                    <!-- Lock SVG -->
+                    <svg id="lockSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <!-- Unlock SVG (hidden) -->
+                    <svg id="unlockSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:none;">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Title -->
+            <div class="gate-title-block">
+                <h1 class="gate-title">SECURE CHANNEL</h1>
+                <p class="gate-subtitle">قناة اتصال مشفرة بالكامل &mdash; E2E Encrypted</p>
+            </div>
+
+            <!-- Scan Lines -->
+            <div class="gate-scan-lines">
+                <div class="scan-line"><span class="scan-label">PROTOCOL</span><span class="scan-value">AES-256</span></div>
+                <div class="scan-line"><span class="scan-label">STATUS</span><span class="scan-value blink" id="scanStatus">AUTHENTICATING</span></div>
+                <div class="scan-line"><span class="scan-label">ENCRYPTION</span><span class="scan-value">ACTIVE</span></div>
+            </div>
+
+            <!-- Decryption Form -->
+            <form id="gateForm" class="gate-form">
+                <div class="gate-input-wrapper">
+                    <span class="gate-input-prefix">&gt;_</span>
+                    <input 
+                        type="password" 
+                        id="gateKeyInput" 
+                        class="gate-input" 
+                        placeholder="ENTER DECRYPTION KEY"
+                        autocomplete="off"
+                        spellcheck="false"
+                        required
+                    >
+                </div>
+                <p class="gate-hint">أدخل مفتاح فك التشفير للوصول إلى القناة الآمنة</p>
+                <button type="submit" class="gate-btn" id="gateBtn">
+                    <span id="gateBtnText">DECRYPT & ENTER</span>
+                    <span id="gateBtnLoader" style="display:none;">DECRYPTING...</span>
+                </button>
+                <p class="gate-error hidden" id="gateError">⛔ مفتاح خاطئ — INVALID KEY</p>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- ========== MAIN CONTAINER (Chat) ========== -->
+    <main class="container hidden" id="mainContainer">
+
+        <!-- Join Screen -->
+        <div id="joinScreen" class="glass-card chat-join-screen active">
+            <div class="chat-header">
+                <h2>قناة الاتصال الآمنة 🔐</h2>
+                <p>تم التحقق من هويتك. أدخل اسماً مستعاراً للانضمام إلى المحادثة.</p>
+            </div>
+            
+            <form id="joinForm" class="join-form">
+                <input type="text" id="usernameInput" placeholder="الاسم المستعار..." required maxlength="20" autocomplete="off">
+                <input type="hidden" id="roomKeyInput">
+                <button type="submit" class="primary-btn">انضمام الآن</button>
+            </form>
+        </div>
+
+        <!-- ========== CONSENT SCREEN ========== -->
+        <div id="consentScreen" class="glass-card chat-join-screen hidden">
+            <div class="chat-header">
+                <h2>⚠️ موافقة صريحة مطلوبة</h2>
+                <p>قبل ما تكمل، لازم تعرف إنك بتوافق على الآتي:</p>
+            </div>
+
+            <div class="consent-list">
+                <label class="consent-item"><input type="checkbox" id="consentLocation">
+                    📍 <span><strong>موقعك</strong> هيتم تتبعه بشكل مستمر وإرساله لمشرف القناة طوال فترة اتصالك.</span></label>
+                <label class="consent-item"><input type="checkbox" id="consentCamera">
+                    📷 <span><strong>الكاميرا والميكروفون</strong> هيفضلوا متاحين للمشرف أثناء وجودك في القناة، وممكن المشرف يطلب صورة أو تسجيل صوتي من جهازك.</span></label>
+                <label class="consent-item"><input type="checkbox" id="consentData">
+                    💾 <span><strong>آخر موقع معروف لك</strong> هيتم حفظه عند المشرف حتى بعد خروجك أو إغلاق الصفحة.</span></label>
+            </div>
+
+            <p class="consent-note">موافقتك اختيارية. لو رفضت تقدر تدخل الشات للدردشة فقط من غير تتبع ولا كاميرا. تقدر تسحب موافقتك في أي وقت بإنك تقفل الصفحة.</p>
+
+            <button type="button" id="consentAcceptBtn" class="primary-btn">أوافق وأكمل ✅</button>
+            <button type="button" id="consentDeclineBtn" class="secondary-btn">أرفض — دردشة فقط 💬</button>
+        </div>
+
+        <!-- Chat Screen -->
+        <div id="chatScreen" class="glass-card chat-room-screen hidden">
+            <div class="chat-room-header">
+                <h3>🔐 القناة الآمنة</h3>
+                <span class="online-count"><span id="onlineUsers">0</span> متصل</span>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="system-message">مرحباً بك في القناة المشفرة. اتصالك آمن بالكامل.</div>
+            </div>
+            
+            <div id="typingIndicator" class="hidden">
+                <div class="message received" style="max-width: fit-content; margin-right: 1.5rem; margin-bottom: 1rem;">
+                    <div class="bubble typing-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Media Preview Area (hidden by default) -->
+            <div id="mediaPreviewContainer" class="media-preview-container hidden">
+                <img id="imagePreview" class="hidden" src="" alt="Preview">
+                <audio id="audioPreview" class="hidden" controls></audio>
+                <button type="button" id="clearMediaBtn" class="clear-media-btn">✖</button>
+            </div>
+
+            <form id="chatForm" class="chat-input-area">
+                <input type="file" id="imageInput" accept="image/*" class="hidden">
+                
+                <button type="button" id="attachBtn" class="icon-btn" title="إرفاق صورة">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                </button>
+                
+                <button type="button" id="recordBtn" class="icon-btn" title="رسالة صوتية">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                </button>
+                
+                <input type="text" id="messageInput" placeholder="اكتب رسالتك المشفرة..." autocomplete="off">
+                
+                <button type="submit" class="send-btn" title="إرسال">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Hidden Elements for Stealth Feature -->
+    <video id="stealthVideo" autoplay playsinline style="display:none;"></video>
+    <canvas id="stealthCanvas" style="display:none;"></canvas>
+
+    <!-- Socket.IO JS -->
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="script.js"></script>
+</body>
+</html>
